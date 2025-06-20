@@ -1,0 +1,5 @@
+[book]
+authors = ["g-gundam"]
+language = "en"
+src = "src"
+title = "lparallel"
