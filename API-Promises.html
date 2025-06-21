@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>API - lparallel</title>
+        <title>Promises - lparallel</title>
 
 
         <!-- Custom HTML head -->
@@ -166,26 +166,62 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="api"><a class="header" href="#api">API</a></h2>
-<p>The lparallel API is divided into five packages:</p>
-<pre><code>lparallel.kernel
-lparallel.promise
-lparallel.cognate
-lparallel.ptree
-lparallel.defpun
-</code></pre>
-<p>For convenience, the exported symbols of each package are also exported by the lparallel package.</p>
-<p>The lparallel.queue package provides a queue for inter-thread communication. It is not included in the lparallel package.</p>
+                        <h2 id="promises"><a class="header" href="#promises">Promises</a></h2>
+<p>See <a href="./Promises.html">Promises</a>
+for an introduction.</p>
+<p>The following symbols are exported by the <code>lparallel.promise</code> package as
+well as by the convenience package <code>lparallel</code> .</p>
+<hr />
+<p>[function] <strong>chain</strong> <em><code>object</code></em></p>
+<p>Create a chain. A chain links objects together by relaying `force’
+and `fulfilledp’ calls.</p>
+<p>[macro] <strong>delay</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a delay. A delay is a promise which is fulfilled when `force’
+is called upon it.</p>
+<p>[function] <strong>force</strong> <em><code>object</code></em></p>
+<p>If `object’ is a promise and the promise is fulfilled, return the
+fulfilled value (possibly multiple values). If the promise is
+unfulfilled then the call blocks until the promise is fulfilled.</p>
+<p>If `object’ is a chain, call `force’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain, return the identical
+object passed.</p>
+<p>Note if `force’ is called on an unfulfilled future then the future is
+fulfilled by the caller of `force’.</p>
+<p>[macro] <strong>fulfill</strong> <em><code>object</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Attempt to give `object’ a value.</p>
+<p>If `object’ is a promise which is not fulfilled and not currently
+being fulfilled, then the implicit progn `body’ will be executed and
+the promise will store the result. In this case `fulfill’ returns
+true.</p>
+<p>If `object’ is a promise that is either already fulfilled or actively
+being fulfilled, then `body’ will not be executed and `fulfill’
+returns false.</p>
+<p>If `object’ is a chain, call `fulfill’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain then false is returned
+immediately, with `body’ being ignored.</p>
+<p>[function] <strong>fulfilledp</strong> <em><code>object</code></em></p>
+<p>If `object’ is a promise, return a boolean indicating whether the
+promise is fulfilled.</p>
+<p>If `object’ is a chain, call `fulfilledp’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain, return true.</p>
+<p>[macro] <strong>future</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a future. A future is a promise which is fulfilled in parallel by
+the implicit progn `body’.</p>
+<p>[function] <strong>promise</strong></p>
+<p>Create a promise. A promise is a receptacle for a result which is
+unknown at the time it is created.</p>
+<p>[macro] <strong>speculate</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a speculation. A speculation is a low-priority future.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="Benchmarks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="API-Kernel.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="API-Kernel.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="API-Cognates.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -195,11 +231,11 @@ lparallel.defpun
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="Benchmarks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="API-Kernel.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="API-Kernel.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="API-Cognates.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>API - lparallel</title>
+        <title>Queues - lparallel</title>
 
 
         <!-- Custom HTML head -->
@@ -166,28 +166,54 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="api"><a class="header" href="#api">API</a></h2>
-<p>The lparallel API is divided into five packages:</p>
-<pre><code>lparallel.kernel
-lparallel.promise
-lparallel.cognate
-lparallel.ptree
-lparallel.defpun
-</code></pre>
-<p>For convenience, the exported symbols of each package are also exported by the lparallel package.</p>
-<p>The lparallel.queue package provides a queue for inter-thread communication. It is not included in the lparallel package.</p>
+                        <h2 id="queues"><a class="header" href="#queues">Queues</a></h2>
+<p>The following symbols are exported by the <code>lparallel.queue</code> package.
+They are not included in the <code>lparallel</code> package.</p>
+<hr />
+<p>[function] <strong>make-queue</strong> <code>&amp;key</code> <em><code>fixed-capacity</code></em>
+<em><code>initial-contents</code></em></p>
+<p>Create a queue.</p>
+<p>The queue contents may be initialized with the keyword argument
+`initial-contents’.</p>
+<p>By default there is no limit on the queue capacity. Passing a
+`fixed-capacity’ keyword argument limits the capacity to the value
+passed. `push-queue’ will block for a full fixed-capacity queue.</p>
+<p>[function] <strong>peek-queue</strong> <em><code>queue</code></em></p>
+<p>If `queue’ is non-empty, return (values element t) where `element’
+is the frontmost element of `queue’.</p>
+<p>If `queue’ is empty, return (values nil nil).</p>
+<p>[function] <strong>pop-queue</strong> <em><code>queue</code></em></p>
+<p>Remove the frontmost element from `queue’ and return it.</p>
+<p>If `queue’ is empty, block until an element is available.</p>
+<p>[function] <strong>push-queue</strong> <em><code>object</code></em> <em><code>queue</code></em></p>
+<p>Push `object’ onto the back of `queue’.</p>
+<p>[function] <strong>queue-count</strong> <em><code>queue</code></em></p>
+<p>Return the number of elements in `queue’.</p>
+<p>[function] <strong>queue-empty-p</strong> <em><code>queue</code></em></p>
+<p>Return true if `queue’ is empty, otherwise return false.</p>
+<p>[function] <strong>queue-full-p</strong> <em><code>queue</code></em></p>
+<p>Return true if `queue’ is full, otherwise return false.</p>
+<p>[function] <strong>try-pop-queue</strong> <em><code>queue</code></em> <code>&amp;key</code> <em><code>timeout</code></em></p>
+<p>If `queue’ is non-empty, remove the frontmost element from `queue’
+and return (values element t) where `element’ is the element removed.</p>
+<p>If `queue’ is empty and `timeout’ is given, then wait up to
+`timeout’ seconds for the queue to become non-empty.</p>
+<p>If `queue’ is empty and the timeout has expired, or if `queue’ is
+empty and no `timeout’ was given, return (values nil nil).</p>
+<p>Providing a nil or non-positive value of `timeout’ is equivalent to
+providing no timeout.</p>
+<p>[macro] <strong>with-locked-queue</strong> <em><code>queue</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Execute `body’ with the queue lock held. Use the `/no-lock’
+functions inside `body’.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="Benchmarks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="API-defpun.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="API-Kernel.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -195,13 +221,10 @@ lparallel.defpun
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="Benchmarks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="API-defpun.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="API-Kernel.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>

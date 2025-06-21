@@ -1499,6 +1499,539 @@ lparallel.defpun
 </code></pre>
 <p>For convenience, the exported symbols of each package are also exported by the lparallel package.</p>
 <p>The lparallel.queue package provides a queue for inter-thread communication. It is not included in the lparallel package.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="kernel-1"><a class="header" href="#kernel-1">Kernel</a></h2>
+<p>[special variable] <strong>*debug-tasks-p*</strong></p>
+<p>If true (the default), the debugger is invoked when an error goes
+unhandled inside a task, i.e. when the handlers established by
+`task-handler-bind’ (if any) do not handle it.</p>
+<p>If false, unhandled errors from tasks are automatically transferred to
+their parent thread (and/or any dependent threads) via the
+`transfer-error’ restart. This is for convenience — sometimes you
+wish to avoid N debugger popups arising from N errors in N worker
+threads.</p>
+<p>For local control over debugger invocation, bind a task handler:</p>
+<p>(task-handler-bind ((error #’invoke-debugger)) …)</p>
+<p>(task-handler-bind ((error #’invoke-transfer-error)) …)</p>
+<p>[special variable] <strong>*kernel*</strong></p>
+<p>The current kernel, or nil.</p>
+<p>[special variable] <strong>*kernel-spin-count*</strong></p>
+<p>Default value of the `spin-count’ argument to `make-kernel’.</p>
+<p>[special variable] <strong>*task-category*</strong></p>
+<p>See `kill-tasks’. Default value is `:default’.</p>
+<p>[special variable] <strong>*task-priority*</strong></p>
+<p>When bound to `:low’, the kernel schedules submitted tasks at low
+priority. Default value is `:default’.</p>
+<p>[function] <strong>broadcast-task</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>args</code></em></p>
+<p>Wait for current and pending tasks to complete, if any, then
+simultaneously execute the given task inside each worker. Wait until
+these tasks finish, then return the results in a vector.</p>
+<p>Calling `broadcast-task’ from inside a worker is an error.</p>
+<p>[function] <strong>cancel-timeout</strong> <em><code>timeout</code></em> <em><code>timeout-result</code></em></p>
+<p>Attempt to cancel a timeout. If successful, the channel passed to
+`submit-timeout’ will receive `timeout-result’.</p>
+<p>At most one call to `cancel-timeout’ will succeed; others will be
+ignored. If the timeout has expired on its own then `cancel-timeout’
+will have no effect.</p>
+<p>`cancel-timeout’ is not available in ABCL.</p>
+<p>`submit-timeout’ and `cancel-timeout’ are deprecated; use the new
+`:timeout’ option in `try-receive-result’.</p>
+<p>[function] <strong>check-kernel</strong></p>
+<p>Ensures the value of `*kernel*’ is a kernel instance. Provides
+the MAKE-KERNEL and STORE-VALUE restarts. Returns `*kernel*’.</p>
+<p>[function] <strong>end-kernel</strong> <code>&amp;key</code> <em><code>wait</code></em></p>
+<p>Sets `*kernel*’ to nil and ends all workers gracefully.</p>
+<p>`end-kernel’ should not be used as a substitute for properly waiting
+on tasks with `receive-result’ or otherwise.</p>
+<p>If `wait’ is nil (the default) then `end-kernel’ returns
+immediately. Workers are waited upon by a separate shutdown manager
+thread.</p>
+<p>If `wait’ is non-nil then `end-kernel’ blocks until all workers
+are finished. No shutdown manager thread is created.</p>
+<p>A list of the implementation-defined worker thread objects is returned.
+If `wait’ is nil then the shutdown manager thread is also returned as
+the first element in the list.</p>
+<p>Note that creating and destroying kernels is relatively expensive. A
+kernel typically exists for lifetime of the Lisp process. Having more
+than one kernel is fine — simply use `let’ to bind a kernel instance
+to `*kernel*’ when you need it. Use `kill-tasks’ to
+terminate deadlocked or infinite looping tasks.</p>
+<p>[function] <strong>invoke-transfer-error</strong> <em><code>error</code></em></p>
+<p>Equivalent to (invoke-restart ‘transfer-error error).</p>
+<p>This is a convenience function for use in `task-handler-bind’.</p>
+<p>[function] <strong>kernel-bindings</strong></p>
+<p>Return the bindings passed to `make-kernel’.</p>
+<p>[function] <strong>kernel-context</strong></p>
+<p>Return the context passed to `make-kernel’.</p>
+<p>[function] <strong>kernel-name</strong></p>
+<p>Return the name passed to `make-kernel’.</p>
+<p>[function] <strong>kernel-worker-count</strong></p>
+<p>Return the number of workers in the current kernel.</p>
+<p>[function] <strong>kernel-worker-index</strong></p>
+<p>If called from inside a worker, return the worker’s assigned index,
+ranging from 0 to one less than (kernel-worker-count).</p>
+<p>If not called from inside a worker, return nil.</p>
+<p>[function] <strong>kill-tasks</strong> <em><code>task-category</code></em> <code>&amp;key</code> <em><code>dry-run</code></em></p>
+<p>This is an expensive function which should only be used in exceptional
+circumstances.</p>
+<p>Every task has an associated task category. When a task is submitted, it
+is assigned the category of `*task-category*’ which has a
+default value of `:default’.</p>
+<p>`kill-tasks’ interrupts running tasks whose category is `eql’ to
+`task-category’. The corresponding worker threads are killed and
+replaced. Pending tasks are not affected.</p>
+<p>If you don’t know what to pass for `task-category’ then you should
+probably pass `:default’, though this may kill more tasks than you
+wish. Binding `*task-category*’ around `submit-task’ enables
+targeted task killing.</p>
+<p>If `dry-run’ is nil, the function returns the number of tasks killed.</p>
+<p>If `dry-run’ is non-nil then no tasks are killed. In this case the
+return value is the number of tasks that would have been killed if
+`dry-run’ were nil.</p>
+<p>`kill-tasks’ is not available in ABCL.</p>
+<p>[function] <strong>make-channel</strong> <code>&amp;rest</code> <em><code>args</code></em></p>
+<p>Create a channel for submitting and receiving tasks. The current value
+of `*kernel*’ is stored for use in `submit-task’.</p>
+<p>By default there is no limit on the channel capacity. Passing a
+`fixed-capacity’ keyword argument limits the capacity to the value
+passed.</p>
+<p>Note that a fixed capacity channel may cause a deadlocked kernel if
+`receive-result’ is not called a sufficient number of times.</p>
+<p>[function] <strong>make-kernel</strong> <em><code>worker-count</code></em> <code>&amp;key</code> <em><code>name</code></em>
+<em><code>bindings</code></em> <em><code>context</code></em> <em><code>spin-count</code></em> <em><code>use-caller</code></em></p>
+<p>Create a kernel with `worker-count’ number of worker threads.</p>
+<p>`name’ is a string identifier for this kernel which is reported by
+`print-object’. Worker threads will also be given this name, shown in
+`bordeaux-threads:all-threads’.</p>
+<p>`bindings’ is an alist for establishing thread-local variables inside
+worker threads. By default workers will have *standard-output* and
+*error-output* bindings.</p>
+<p>Dynamic context for each worker may be established with the function
+`context’. The argument passed to `context’ is a function which
+must be funcalled. It begins the worker loop and will not return until
+the worker exits. The default value of `context’ is #’funcall. The
+special variables in `bindings’ are available inside the `context’
+function.</p>
+<p>When a worker discovers that no tasks are available, `spin-count’ is
+the number of task-searching iterations done by the worker before
+sleeping.</p>
+<p>If `use-caller’ is true (default is false) then in certain situations
+the calling thread may be enlisted to steal work from worker threads.
+This is an optimization strategy that currently applies only during the
+execution of functions defined by `defpun’ and `defpun/type’.
+Typically in this case the number of workers will be one less than the
+number of cores/CPUs.</p>
+<p>A kernel will not be garbage collected until `end-kernel’ is called.</p>
+<p>[function] <strong>receive-result</strong> <em><code>channel</code></em></p>
+<p>Remove a result from `channel’. If nothing is available the call will
+block until a result is received.</p>
+<p>[function] <strong>submit-task</strong> <em><code>channel</code></em> <em><code>function</code></em> <code>&amp;rest</code> <em><code>args</code></em></p>
+<p>Submit a task through `channel’ to the kernel stored in `channel’.</p>
+<p>[function] <strong>submit-timeout</strong> <em><code>channel</code></em> <em><code>timeout-seconds</code></em>
+<em><code>timeout-result</code></em></p>
+<p>Effectively equivalent to</p>
+<p>(submit-task channel (lambda () (sleep timeout-seconds) timeout-result))</p>
+<p>The difference is that `submit-timeout’ does not occupy a worker
+thread.</p>
+<p>A timeout object is returned, which may be passed to
+`cancel-timeout’.</p>
+<p>`submit-timeout’ and `cancel-timeout’ are deprecated; use the new
+`:timeout’ option in `try-receive-result’.</p>
+<p>[function] <strong>task-categories-running</strong></p>
+<p>Return a vector containing the task category currently running for each
+worker.</p>
+<p>[macro] <strong>task-handler-bind</strong> <em><code>clauses</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Like `handler-bind’ but handles conditions signaled inside tasks that
+were created in `body’.</p>
+<p>[function] <strong>try-receive-result</strong> <em><code>channel</code></em> <code>&amp;key</code> <em><code>timeout</code></em></p>
+<p>If `channel’ has a result then remove it and return (values result
+t).</p>
+<p>If no result is available and `timeout’ is given, then wait up to
+`timeout’ seconds for a result.</p>
+<p>If the channel is empty and the timeout has expired, or if the channel
+is empty and no timeout was given, return (values nil nil).</p>
+<p>Providing a nil or non-positive value of `timeout’ is equivalent to
+providing no timeout.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="promises-1"><a class="header" href="#promises-1">Promises</a></h2>
+<p>See <a href="./Promises.html">Promises</a>
+for an introduction.</p>
+<p>The following symbols are exported by the <code>lparallel.promise</code> package as
+well as by the convenience package <code>lparallel</code> .</p>
+<hr />
+<p>[function] <strong>chain</strong> <em><code>object</code></em></p>
+<p>Create a chain. A chain links objects together by relaying `force’
+and `fulfilledp’ calls.</p>
+<p>[macro] <strong>delay</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a delay. A delay is a promise which is fulfilled when `force’
+is called upon it.</p>
+<p>[function] <strong>force</strong> <em><code>object</code></em></p>
+<p>If `object’ is a promise and the promise is fulfilled, return the
+fulfilled value (possibly multiple values). If the promise is
+unfulfilled then the call blocks until the promise is fulfilled.</p>
+<p>If `object’ is a chain, call `force’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain, return the identical
+object passed.</p>
+<p>Note if `force’ is called on an unfulfilled future then the future is
+fulfilled by the caller of `force’.</p>
+<p>[macro] <strong>fulfill</strong> <em><code>object</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Attempt to give `object’ a value.</p>
+<p>If `object’ is a promise which is not fulfilled and not currently
+being fulfilled, then the implicit progn `body’ will be executed and
+the promise will store the result. In this case `fulfill’ returns
+true.</p>
+<p>If `object’ is a promise that is either already fulfilled or actively
+being fulfilled, then `body’ will not be executed and `fulfill’
+returns false.</p>
+<p>If `object’ is a chain, call `fulfill’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain then false is returned
+immediately, with `body’ being ignored.</p>
+<p>[function] <strong>fulfilledp</strong> <em><code>object</code></em></p>
+<p>If `object’ is a promise, return a boolean indicating whether the
+promise is fulfilled.</p>
+<p>If `object’ is a chain, call `fulfilledp’ on the chained object.</p>
+<p>If `object’ is not a promise and not a chain, return true.</p>
+<p>[macro] <strong>future</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a future. A future is a promise which is fulfilled in parallel by
+the implicit progn `body’.</p>
+<p>[function] <strong>promise</strong></p>
+<p>Create a promise. A promise is a receptacle for a result which is
+unknown at the time it is created.</p>
+<p>[macro] <strong>speculate</strong> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a speculation. A speculation is a low-priority future.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="cognates-1"><a class="header" href="#cognates-1">Cognates</a></h2>
+<p>See <a href="./Cognates.html">Cognates</a>
+for an introduction.</p>
+<p>The following symbols are exported by the <code>lparallel.cognate</code> package as
+well as by the convenience package <code>lparallel</code> .</p>
+<hr />
+<p>[macro] <strong>pand</strong> <code>&amp;rest</code> <em><code>forms</code></em></p>
+<p>Parallel version of `and’. Forms in `forms’ may be executed in
+parallel, though not necessarily at the same time. If all forms evaluate
+to true, then the result of any form may be returned.</p>
+<p>[function] <strong>pcount</strong> <em><code>item</code></em> <em><code>sequence</code></em> <code>&amp;key</code> <em><code>from-end</code></em>
+<em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>test</code></em> <em><code>test-not</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `count’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>pcount-if</strong> <em><code>predicate</code></em> <em><code>sequence</code></em> <code>&amp;key</code>
+<em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `count-if’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>pcount-if-not</strong> <em><code>predicate</code></em> <em><code>sequence</code></em> <code>&amp;rest</code>
+<em><code>args</code></em> <code>&amp;key</code> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `count-if-not’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[macro] <strong>pdotimes</strong> <em><code>(var count &amp;optional result parts)</code></em> <code>&amp;body</code>
+<em><code>body</code></em></p>
+<p>Parallel version of `dotimes’.</p>
+<p>The `parts’ option divides the integer range into `parts’ number
+of parts. Default is (kernel-worker-count).</p>
+<p>Unlike `dotimes’, `pdotimes’ does not define an implicit block
+named nil.</p>
+<p>[function] <strong>pevery</strong> <em><code>predicate</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `every’. Calls to `predicate’ are done in
+parallel, though not necessarily at the same time. Behavior is otherwise
+indistinguishable from `every’.</p>
+<p>Keyword arguments `parts’ and `size’ are also accepted (see
+`pmap’).</p>
+<p>[function] <strong>pfind</strong> <em><code>item</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em> <code>&amp;key</code>
+<em><code>from-end</code></em> <em><code>test</code></em> <em><code>test-not</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `pfind’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>pfind-if</strong> <em><code>predicate</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em>
+<code>&amp;key</code> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `pfind-if’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>pfind-if-not</strong> <em><code>predicate</code></em> <em><code>sequence</code></em> <code>&amp;rest</code>
+<em><code>args</code></em> <code>&amp;key</code> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `pfind-if-not’.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[macro] <strong>pfuncall</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>args</code></em></p>
+<p>Parallel version of `funcall’. Arguments in `args’ may be executed
+in parallel, though not necessarily at the same time.</p>
+<p>[macro] <strong>plet</strong> <em><code>bindings</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>The syntax of `plet’ matches that of `let’.</p>
+<p>plet ({var-no-init | (var [init-form]) | ((var1 var2 …)
+[init-form])}*) declaration* form*</p>
+<p>For each (var init-form) pair, a future is created which executes
+`init-form’. Inside `body’, `var’ is a symbol macro which
+expands to a `force’ form for the corresponding future.</p>
+<p>Likewise, each ((var1 var2 …) init-form) pair creates a future where
+`var1′, `var2′,… are bound to the respective multiple return
+values of `init-form’.</p>
+<p>Each `var-no-init’ is bound to nil and each variable without a
+corresponding `init-form’ is bound to nil (no future is created).</p>
+<p>Type declarations for vars are recognized by `plet’ and incorporated
+into the final expansion. The semantics of these declarations are the
+same as those of a regular `let’ form.</p>
+<p>`plet’ is subject to optimization inside `defpun’.</p>
+<p>[macro] <strong>plet-if</strong> <em><code>predicate</code></em> <em><code>bindings</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>The syntax of `plet-if’ matches that of `plet’ except for the
+addition of the `predicate’ form.</p>
+<p>If `predicate’ evaluates to true, the behavior is the same as
+`plet’.</p>
+<p>If `predicate’ evaluates to false, the behavior is the same as
+`slet’.</p>
+<p>`plet-if’ is subject to optimization inside `defpun’.</p>
+<p>[function] <strong>pmap</strong> <em><code>result-type</code></em> <em><code>function</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `map’. Keyword arguments `parts’ and `size’
+are also accepted.</p>
+<p>The `parts’ option divides each sequence into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>The `size’ option limits the number of elements mapped to `size’.
+When given, no `length’ calls are made on the sequence(s) passed.</p>
+<p>Warning: `size’ must be less than or equal to the length of the
+smallest sequence passed. It is unspecified what happens when that
+condition is not met.</p>
+<p>[function] <strong>pmap-into</strong> <em><code>result-sequence</code></em> <em><code>function</code></em> <code>&amp;rest</code>
+<em><code>sequences</code></em></p>
+<p>Parallel version of `map-into’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmap-reduce</strong> <em><code>map-function</code></em> <em><code>reduce-function</code></em>
+<em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em> <code>&amp;key</code> <em><code>start</code></em> <em><code>end</code></em> <em><code>initial-value</code></em>
+<em><code>parts</code></em> <em><code>recurse</code></em></p>
+<p>Equivalent to (preduce reduce-function sequence :key map-function …).</p>
+<p>[function] <strong>pmapc</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>lists</code></em></p>
+<p>Parallel version of `mapc’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmapcan</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>lists</code></em></p>
+<p>Parallel version of `mapcan’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmapcar</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `mapcar’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>Unlike `mapcar’, `pmapcar’ also accepts vectors.</p>
+<p>[function] <strong>pmapcon</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>lists</code></em></p>
+<p>Parallel version of `mapcon’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmapl</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>lists</code></em></p>
+<p>Parallel version of `mapl’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmaplist</strong> <em><code>function</code></em> <code>&amp;rest</code> <em><code>lists</code></em></p>
+<p>Parallel version of `maplist’. Keyword arguments `parts’ and
+`size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pmaplist-into</strong> <em><code>result-list</code></em> <em><code>function</code></em> <code>&amp;rest</code>
+<em><code>lists</code></em></p>
+<p>Like `pmaplist’ but results are stored in `result-list’. Keyword
+arguments `parts’ and `size’ are also accepted (see `pmap’).</p>
+<p>[function] <strong>pnotany</strong> <em><code>predicate</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `notany’. Calls to `predicate’ are done in
+parallel, though not necessarily at the same time. Behavior is otherwise
+indistinguishable from `notany’.</p>
+<p>Keyword arguments `parts’ and `size’ are also accepted (see
+`pmap’).</p>
+<p>[function] <strong>pnotevery</strong> <em><code>predicate</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `notevery’. Calls to `predicate’ are done in
+parallel, though not necessarily at the same time. Behavior is otherwise
+indistinguishable from `notevery’.</p>
+<p>Keyword arguments `parts’ and `size’ are also accepted (see
+`pmap’).</p>
+<p>[macro] <strong>por</strong> <code>&amp;rest</code> <em><code>forms</code></em></p>
+<p>Parallel version of `or’. Forms in `forms’ may be executed in
+parallel, though not necessarily at the same time. Any form which
+evaluates to non-nil may be returned.</p>
+<p>[function] <strong>preduce</strong> <em><code>function</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em>
+<code>&amp;key</code> <em><code>key</code></em> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>initial-value</code></em>
+<em><code>parts</code></em> <em><code>recurse</code></em></p>
+<p>Parallel version of `reduce’.</p>
+<p>`preduce’ subdivides the input sequence into `parts’ number of
+parts and, in parallel, calls `reduce’ on each part. The partial
+results are then reduced again, either by `reduce’ (the default) or,
+if `recurse’ is non-nil, by `preduce’.</p>
+<p>`parts’ defaults to (kernel-worker-count).</p>
+<p>`key’ is thrown out while reducing the partial results. It applies to
+the first pass only.</p>
+<p>`start’ and `end’ have the same meaning as in `reduce’.</p>
+<p>`from-end’ means “from the end of each part”.</p>
+<p>`initial-value’ means “initial value of each part”.</p>
+<p>[function] <strong>preduce-partial</strong> <em><code>function</code></em> <em><code>sequence</code></em> <code>&amp;rest</code>
+<em><code>args</code></em> <code>&amp;key</code> <em><code>key</code></em> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>initial-value</code></em>
+<em><code>parts</code></em></p>
+<p>Like `preduce’ but only does a single reducing pass.</p>
+<p>The length of `sequence’ must not be zero.</p>
+<p>Returns the partial results as a vector.</p>
+<p>[function] <strong>premove</strong> <em><code>item</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em> <code>&amp;key</code>
+<em><code>test</code></em> <em><code>test-not</code></em> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `remove’. Note the `count’ option is not
+supported.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>premove-if</strong> <em><code>test</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em>
+<code>&amp;key</code> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `remove-if’. Note the `count’ option is not
+supported.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>premove-if-not</strong> <em><code>test</code></em> <em><code>sequence</code></em> <code>&amp;rest</code> <em><code>args</code></em>
+<code>&amp;key</code> <em><code>from-end</code></em> <em><code>start</code></em> <em><code>end</code></em> <em><code>key</code></em> <em><code>parts</code></em></p>
+<p>Parallel version of `remove-if-not’. Note the `count’ option is
+not supported.</p>
+<p>The `parts’ option divides `sequence’ into `parts’ number of
+parts. Default is (kernel-worker-count).</p>
+<p>[function] <strong>psome</strong> <em><code>predicate</code></em> <code>&amp;rest</code> <em><code>sequences</code></em></p>
+<p>Parallel version of `some’. Calls to `predicate’ are done in
+parallel, though not necessarily at the same time. Behavior is otherwise
+indistinguishable from `some’ except that any non-nil predicate
+comparison result may be returned.</p>
+<p>Keyword arguments `parts’ and `size’ are also accepted (see
+`pmap’).</p>
+<p>[function] <strong>psort</strong> <em><code>sequence</code></em> <em><code>predicate</code></em> <code>&amp;key</code> <em><code>key</code></em>
+<em><code>granularity</code></em> <code>&amp;allow-other-keys</code></p>
+<p>Parallel version of `sort’.</p>
+<p>If `granularity’ is provided then parallel tasks are created only for
+segments larger than `granularity’. This may or may not result in
+better performance.</p>
+<p>At present `psort’ is only parallelized for vectors; other types are
+given to `cl:sort’.</p>
+<p>[macro] <strong>slet</strong> <em><code>bindings</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>`slet’ (serial let) is the non-parallel counterpart to `plet’.</p>
+<p>The syntax of `slet’ matches that of `plet’, which includes the
+ability to bind multiple values.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="ptrees-1"><a class="header" href="#ptrees-1">Ptrees</a></h2>
+<p>See <a href="./Ptrees.html">Ptrees</a>
+for an introduction.</p>
+<p>The following symbols are exported by the <code>lparallel.ptree</code> package as
+well as by the convenience package <code>lparallel</code> .</p>
+<hr />
+<p>[special variable] <strong>*ptree-node-kernel*</strong></p>
+<p>When non-nil, `*kernel*’ is bound to this value during the call
+of a node function.</p>
+<p>[function] <strong>call-ptree</strong> <em><code>id</code></em> <em><code>ptree</code></em></p>
+<p>Return the computation result of the node with identifier `id’ in
+`ptree’.</p>
+<p>If the node is uncomputed, compute the result.</p>
+<p>If the node is already computed, return the computed result.</p>
+<p>[function] <strong>check-ptree</strong> <em><code>ptree</code></em></p>
+<p>Verify that all nodes have been defined with an associated function. If
+not, `ptree-undefined-function-error’ is signaled.</p>
+<p>[function] <strong>clear-ptree</strong> <em><code>ptree</code></em></p>
+<p>Clear all node results in `ptree’, restoring the tree to its
+uncomputed state.</p>
+<p>[function] <strong>clear-ptree-errors</strong> <em><code>ptree</code></em></p>
+<p>Clear all error results in `ptree’, allowing the computation to
+resume from its latest pre-error state.</p>
+<p>[function] <strong>make-ptree</strong></p>
+<p>Create a ptree instance.</p>
+<p>[macro] <strong>ptree</strong> <em><code>defs</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Create a ptree using `flet’ syntax.</p>
+<p>ptree ((node-name child-names function-body)*) form*</p>
+<p>Each `node-name’ form corresponds to the definition of a ptree node.</p>
+<p>`node-name’ is the name of the node being defined (a symbol).</p>
+<p>`child-names’ is a list of the names of child nodes (symbols).</p>
+<p>The function associated with the node being defined is</p>
+<p>`(lambda ,child-names ,@function-body)</p>
+<p>`child-names’ cannot contain lambda list keywords.</p>
+<p>For each `node-name’, a symbol macro is defined which expands to a
+`call-ptree’ form for that node.</p>
+<p>[function] <strong>ptree-computed-p</strong> <em><code>id</code></em> <em><code>ptree</code></em></p>
+<p>Return true if the node with identifier `id’ in `ptree’ has
+finished computing, otherwise return false.</p>
+<p>[function] <strong>ptree-fn</strong> <em><code>id</code></em> <em><code>args</code></em> <em><code>function</code></em> <em><code>ptree</code></em></p>
+<p>Define a ptree node with identifier `id’, which is some unique object
+suitable for `eql’ comparison such as symbol.</p>
+<p>The ids of its child nodes are elements of the list `args’.</p>
+<p>`function’ is the function associated with this node. The arguments
+passed to `function’ are the respective results of the child node
+computations.</p>
+<p>`ptree’ is the ptree instance in which the node is being defined.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="defpun-1"><a class="header" href="#defpun-1"><em>defpun</em></a></h2>
+<p>See <a href="./defpun.html">defpun</a>
+for an introduction.</p>
+<p>The following symbols are exported by the <code>lparallel.defpun</code> package as
+well as by the convenience package <code>lparallel</code> .</p>
+<hr />
+<p>[macro] <strong>declaim-defpun</strong> <code>&amp;rest</code> <em><code>names</code></em></p>
+<p>See `defpun’.</p>
+<p>[macro] <strong>defpun</strong> <em><code>name</code></em> <em><code>params</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>`defpun’ defines a function which is specially geared for
+fine-grained parallelism. If you have many small tasks which bog down
+the system, `defpun’ may help.</p>
+<p>The syntax of `defpun’ matches that of `defun’. The difference is
+that `plet’ and `plet-if’ take on new meaning inside `defpun’.
+The symbols in the binding positions of `plet’ and `plet-if’
+should be viewed as lazily evaluated immutable references.</p>
+<p>Inside a `defpun’ form the name of the function being defined is a
+macrolet, as are the names of other functions which were defined by
+`defpun’. Thus using #’ on them is an error. Calls to functions
+defined by `defpun’ entail more overhead when the caller lies outside
+a `defpun’ form.</p>
+<p>A `defpun’ function must exist before it is referenced inside another
+`defpun’ function. If this is not possible–for example if func1 and
+func2 reference each other–then use `declaim-defpun’ to specify
+intent:</p>
+<p>(declaim-defpun func1 func2)</p>
+<p>[macro] <strong>defpun/type</strong> <em><code>name</code></em> <em><code>params</code></em> <em><code>arg-types</code></em>
+<em><code>return-type</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Typed version of `defpun’.</p>
+<p>`arg-types’ is an unevaluated list of argument types.</p>
+<p>`return-type’ is an unevaluated form of the return type, possibly
+indicating multiple values as in (values fixnum float).</p>
+<p>(As a technical point, if `return-type’ contains no lambda list
+keywords then the return type given to ftype will be additionally
+constrained to match the number of return values specified.)</p>
+<p>[macro] <strong>plet</strong> <em><code>bindings</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>The syntax of `plet’ matches that of `let’.</p>
+<p>plet ({var-no-init | (var [init-form])}*) declaration* form*</p>
+<p>For each (var init-form) pair, a future is created which executes
+`init-form’. Inside `body’, `var’ is a symbol macro which
+expands to a `force’ form for the corresponding future.</p>
+<p>Each `var-no-init’ is bound to nil and each `var’ without
+`init-form’ is bound to nil (no future is created).</p>
+<p>Type declarations for vars are recognized by `plet’ and incorporated
+into the final expansion. The semantics of these declarations are the
+same as those of a regular `let’ form.</p>
+<p>`plet’ is subject to optimization inside `defpun’.</p>
+<p>[macro] <strong>plet-if</strong> <em><code>predicate</code></em> <em><code>bindings</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>The syntax of `plet-if’ matches that of `let’ except for the
+addition of the `predicate’ form.</p>
+<p>If `predicate’ evaluates to true, the behavior is the same as
+`plet’.</p>
+<p>If `predicate’ evaluates to false, the behavior is the same as
+`let’.</p>
+<p>`plet-if’ is subject to optimization inside `defpun’.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="queues"><a class="header" href="#queues">Queues</a></h2>
+<p>The following symbols are exported by the <code>lparallel.queue</code> package.
+They are not included in the <code>lparallel</code> package.</p>
+<hr />
+<p>[function] <strong>make-queue</strong> <code>&amp;key</code> <em><code>fixed-capacity</code></em>
+<em><code>initial-contents</code></em></p>
+<p>Create a queue.</p>
+<p>The queue contents may be initialized with the keyword argument
+`initial-contents’.</p>
+<p>By default there is no limit on the queue capacity. Passing a
+`fixed-capacity’ keyword argument limits the capacity to the value
+passed. `push-queue’ will block for a full fixed-capacity queue.</p>
+<p>[function] <strong>peek-queue</strong> <em><code>queue</code></em></p>
+<p>If `queue’ is non-empty, return (values element t) where `element’
+is the frontmost element of `queue’.</p>
+<p>If `queue’ is empty, return (values nil nil).</p>
+<p>[function] <strong>pop-queue</strong> <em><code>queue</code></em></p>
+<p>Remove the frontmost element from `queue’ and return it.</p>
+<p>If `queue’ is empty, block until an element is available.</p>
+<p>[function] <strong>push-queue</strong> <em><code>object</code></em> <em><code>queue</code></em></p>
+<p>Push `object’ onto the back of `queue’.</p>
+<p>[function] <strong>queue-count</strong> <em><code>queue</code></em></p>
+<p>Return the number of elements in `queue’.</p>
+<p>[function] <strong>queue-empty-p</strong> <em><code>queue</code></em></p>
+<p>Return true if `queue’ is empty, otherwise return false.</p>
+<p>[function] <strong>queue-full-p</strong> <em><code>queue</code></em></p>
+<p>Return true if `queue’ is full, otherwise return false.</p>
+<p>[function] <strong>try-pop-queue</strong> <em><code>queue</code></em> <code>&amp;key</code> <em><code>timeout</code></em></p>
+<p>If `queue’ is non-empty, remove the frontmost element from `queue’
+and return (values element t) where `element’ is the element removed.</p>
+<p>If `queue’ is empty and `timeout’ is given, then wait up to
+`timeout’ seconds for the queue to become non-empty.</p>
+<p>If `queue’ is empty and the timeout has expired, or if `queue’ is
+empty and no `timeout’ was given, return (values nil nil).</p>
+<p>Providing a nil or non-positive value of `timeout’ is equivalent to
+providing no timeout.</p>
+<p>[macro] <strong>with-locked-queue</strong> <em><code>queue</code></em> <code>&amp;body</code> <em><code>body</code></em></p>
+<p>Execute `body’ with the queue lock held. Use the `/no-lock’
+functions inside `body’.</p>
 
                     </main>
 
