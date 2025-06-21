@@ -8,7 +8,7 @@ The easiest way to obtain lparallel is with [Quicklisp](http://www.quicklisp.org
 
 This will download, compile, and load lparallel along with its dependency bordeaux-threads. Alternatively, it may be downloaded manually from the following links:
 
--   lparallel: [release](https://github.com/lmj/lparallel/tags), [repository](https://github.com/lmj/lparallel)
+-   lparallel: [release](https://github.com/sharplispers/lparallel/tags), [repository](https://github.com/sharplispers/lparallel)
 -   bordeaux-threads: [release](https://common-lisp.net/project/bordeaux-threads/releases/), [repository](https://github.com/sionescu/bordeaux-threads)
 
 lparallel should run on any Common Lisp implementation supported by bordeaux-threads. The following implementations successfully pass the lparallel test suite:
