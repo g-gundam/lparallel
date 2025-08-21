@@ -16,6 +16,7 @@ lparallel should run on any Common Lisp implementation supported by bordeaux-thr
 -   ABCL
 -   Allegro
 -   Clozure
+-   ECL
 -   LispWorks
 -   SBCL
 
